@@ -1,21 +1,15 @@
-import * as React from "react"
+import React, {useState} from "react"
 import ReactDOM from "react-dom"
+import reactToWebComponent from "react-to-webcomponent";
 
-class Counter extends React.Component {
-    constructor(){
-        super(),
-        this.state ={
-            count:0
-        }
-    }
+function SimplykVolumeCounter() {
+    const [count, setCount] = useState(0)
 
-     upCount(){
-         this.setState(prev => ({count : prev.count+1}))
-     } 
+    const upCount = () => {
+        setCount(prev => prev +2)
+    } 
 
-    render() {
-        return (<div>hello {this.state.count}<button onClick={() => this.upCount()}>CLick</button></div>)
-    }
+    return (<div>hello {count}<button onClick={upCount}>CLick</button></div>)
 }
 
-ReactDOM.render(<Counter/>, document.getElementById("app"))
+customElements.define("simplyk-volume-counter", reactToWebComponent(SimplykVolumeCounter, React, ReactDOM))

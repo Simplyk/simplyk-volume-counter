@@ -29566,12 +29566,146 @@ if ("development" === 'production') {
 } else {
   module.exports = require('./cjs/react-dom.development.js');
 }
-},{"./cjs/react-dom.development.js":"node_modules/react-dom/cjs/react-dom.development.js"}],"simplyk-volume-counter.js":[function(require,module,exports) {
+},{"./cjs/react-dom.development.js":"node_modules/react-dom/cjs/react-dom.development.js"}],"node_modules/react-to-webcomponent/react-to-webcomponent.js":[function(require,module,exports) {
+
 "use strict";
 
-var React = _interopRequireWildcard(require("react"));
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = _default;
+var reactComponentSymbol = Symbol.for("r2wc.reactComponent");
+var renderSymbol = Symbol.for("r2wc.reactRender");
+var shouldRenderSymbol = Symbol.for("r2wc.shouldRender");
+var define = {
+  // Creates a getter/setter that re-renders everytime a property is set.
+  expando: function (receiver, key, value) {
+    Object.defineProperty(receiver, key, {
+      enumerable: true,
+      get: function () {
+        return value;
+      },
+      set: function (newValue) {
+        value = newValue;
+        this[renderSymbol]();
+      }
+    });
+    receiver[renderSymbol]();
+  }
+};
+/**
+ * Converts a React component into a webcomponent by wrapping it in a Proxy object.
+ * @param {ReactComponent}
+ * @param {React}
+ * @param {ReactDOM}
+ * @param {Object} options - Optional parameters
+ * @param {String?} options.shadow - Use shadow DOM rather than light DOM.
+ */
+
+function _default(ReactComponent, React, ReactDOM, options = {}) {
+  var renderAddedProperties = {
+    isConnected: "isConnected" in HTMLElement.prototype
+  };
+  var rendering = false; // Create the web component "class"
+
+  var WebComponent = function () {
+    var self = Reflect.construct(HTMLElement, arguments, this.constructor);
+
+    if (options.shadow) {
+      self.attachShadow({
+        mode: 'open'
+      });
+    }
+
+    return self;
+  }; // Make the class extend HTMLElement
+
+
+  var targetPrototype = Object.create(HTMLElement.prototype);
+  targetPrototype.constructor = WebComponent; // But have that prototype be wrapped in a proxy.
+
+  var proxyPrototype = new Proxy(targetPrototype, {
+    has: function (target, key) {
+      return key in ReactComponent.propTypes || key in targetPrototype;
+    },
+    // when any undefined property is set, create a getter/setter that re-renders
+    set: function (target, key, value, receiver) {
+      if (rendering) {
+        renderAddedProperties[key] = true;
+      }
+
+      if (typeof key === "symbol" || renderAddedProperties[key] || key in target) {
+        return Reflect.set(target, key, value, receiver);
+      } else {
+        define.expando(receiver, key, value);
+      }
+
+      return true;
+    },
+    // makes sure the property looks writable
+    getOwnPropertyDescriptor: function (target, key) {
+      var own = Reflect.getOwnPropertyDescriptor(target, key);
+
+      if (own) {
+        return own;
+      }
+
+      if (key in ReactComponent.propTypes) {
+        return {
+          configurable: true,
+          enumerable: true,
+          writable: true,
+          value: undefined
+        };
+      }
+    }
+  });
+  WebComponent.prototype = proxyPrototype; // Setup lifecycle methods
+
+  targetPrototype.connectedCallback = function () {
+    // Once connected, it will keep updating the innerHTML.
+    // We could add a render method to allow this as well.
+    this[shouldRenderSymbol] = true;
+    this[renderSymbol]();
+  };
+
+  targetPrototype[renderSymbol] = function () {
+    if (this[shouldRenderSymbol] === true) {
+      var data = {};
+      Object.keys(this).forEach(function (key) {
+        if (renderAddedProperties[key] !== false) {
+          data[key] = this[key];
+        }
+      }, this);
+      rendering = true; // Container is either shadow DOM or light DOM depending on `shadow` option.
+
+      const container = options.shadow ? this.shadowRoot : this; // Use react to render element in container
+
+      this[reactComponentSymbol] = ReactDOM.render(React.createElement(ReactComponent, data), container);
+      rendering = false;
+    }
+  }; // Handle attributes changing
+
+
+  if (ReactComponent.propTypes) {
+    WebComponent.observedAttributes = Object.keys(ReactComponent.propTypes);
+
+    targetPrototype.attributeChangedCallback = function (name, oldValue, newValue) {
+      // TODO: handle type conversion
+      this[name] = newValue;
+    };
+  }
+
+  return WebComponent;
+}
+},{}],"simplyk-volume-counter.js":[function(require,module,exports) {
+"use strict";
+
+var _react = _interopRequireWildcard(require("react"));
 
 var _reactDom = _interopRequireDefault(require("react-dom"));
+
+var _reactToWebcomponent = _interopRequireDefault(require("react-to-webcomponent"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -29579,71 +29713,37 @@ function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "functio
 
 function _interopRequireWildcard(obj, nodeInterop) { if (!nodeInterop && obj && obj.__esModule) { return obj; } if (obj === null || typeof obj !== "object" && typeof obj !== "function") { return { default: obj }; } var cache = _getRequireWildcardCache(nodeInterop); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj.default = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
 
-function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest(); }
 
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
 
-function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
 
-function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) { arr2[i] = arr[i]; } return arr2; }
 
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function"); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, writable: true, configurable: true } }); if (superClass) _setPrototypeOf(subClass, superClass); }
+function _iterableToArrayLimit(arr, i) { var _i = arr == null ? null : typeof Symbol !== "undefined" && arr[Symbol.iterator] || arr["@@iterator"]; if (_i == null) return; var _arr = []; var _n = true; var _d = false; var _s, _e; try { for (_i = _i.call(arr); !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
 
-function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
+function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
-function _createSuper(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function SimplykVolumeCounter() {
+  var _useState = (0, _react.useState)(0),
+      _useState2 = _slicedToArray(_useState, 2),
+      count = _useState2[0],
+      setCount = _useState2[1];
 
-function _possibleConstructorReturn(self, call) { if (call && (_typeof(call) === "object" || typeof call === "function")) { return call; } return _assertThisInitialized(self); }
+  var upCount = function upCount() {
+    setCount(function (prev) {
+      return prev + 2;
+    });
+  };
 
-function _assertThisInitialized(self) { if (self === void 0) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return self; }
+  return /*#__PURE__*/_react.default.createElement("div", null, "hello ", count, /*#__PURE__*/_react.default.createElement("button", {
+    onClick: upCount
+  }, "CLick"));
+}
 
-function _isNativeReflectConstruct() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {})); return true; } catch (e) { return false; } }
-
-function _getPrototypeOf(o) { _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) { return o.__proto__ || Object.getPrototypeOf(o); }; return _getPrototypeOf(o); }
-
-var Counter = /*#__PURE__*/function (_React$Component) {
-  _inherits(Counter, _React$Component);
-
-  var _super = _createSuper(Counter);
-
-  function Counter() {
-    var _this;
-
-    _classCallCheck(this, Counter);
-
-    _this = _super.call(this), _this.state = {
-      count: 0
-    };
-    return _this;
-  }
-
-  _createClass(Counter, [{
-    key: "upCount",
-    value: function upCount() {
-      this.setState(function (prev) {
-        return {
-          count: prev.count + 1
-        };
-      });
-    }
-  }, {
-    key: "render",
-    value: function render() {
-      var _this2 = this;
-
-      return /*#__PURE__*/React.createElement("div", null, "hello ", this.state.count, /*#__PURE__*/React.createElement("button", {
-        onClick: function onClick() {
-          return _this2.upCount();
-        }
-      }, "CLick"));
-    }
-  }]);
-
-  return Counter;
-}(React.Component);
-
-_reactDom.default.render( /*#__PURE__*/React.createElement(Counter, null), document.getElementById("app"));
-},{"react":"node_modules/react/index.js","react-dom":"node_modules/react-dom/index.js"}],"../../../.config/yarn/global/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+customElements.define("simplyk-volume-counter", (0, _reactToWebcomponent.default)(SimplykVolumeCounter, _react.default, _reactDom.default));
+},{"react":"node_modules/react/index.js","react-dom":"node_modules/react-dom/index.js","react-to-webcomponent":"node_modules/react-to-webcomponent/react-to-webcomponent.js"}],"../../../.config/yarn/global/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
