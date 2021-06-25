@@ -29725,7 +29725,7 @@ function _iterableToArrayLimit(arr, i) { var _i = arr == null ? null : typeof Sy
 
 function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
-function SimplykVolumeCounter() {
+function SimplykVolumeCounter(props) {
   var _useState = (0, _react.useState)(0),
       _useState2 = _slicedToArray(_useState, 2),
       count = _useState2[0],
@@ -29737,6 +29737,7 @@ function SimplykVolumeCounter() {
     });
   };
 
+  console.log(props);
   return /*#__PURE__*/_react.default.createElement("div", null, "hello ", count, /*#__PURE__*/_react.default.createElement("button", {
     onClick: upCount
   }, "CLick"));
